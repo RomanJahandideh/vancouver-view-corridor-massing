@@ -1,12 +1,29 @@
 # Vancouver View Corridor Massing
 
-A computational design study, not just a generator: given a real, City-of-Vancouver-mapped protected view corridor and a candidate Downtown-area site, this project asks and computationally answers two concrete research questions about how a sloped geodetic height ceiling, not a flat setback, should actually be handled, then hands the resulting design trade-off to an AI to reason about, not to recompute.
+A computational design study, not just a generator: given a real, City-of-Vancouver-mapped protected view corridor and a candidate Downtown-area site, this project asks and computationally answers two concrete research questions about how a sloped geodetic height ceiling, not a flat setback, should actually be handled, then hands the resulting design trade-off to an agentic AI layer to reason about, not to recompute. Real parcel geometry in, deterministic measurements throughout, and a traceable record of what's confirmed versus placeholder, the same standard of evidence as the other two projects in this series, applied here to a harder, sloped-plane constraint instead of a flat one.
 
-**This is a Rhino/Grasshopper study, not a web app.** There's no live demo link; see "Run it" below.
+**This is a Rhino/Grasshopper study, not a web app.** There's no live demo link; see "How to test it" below for exactly what to run and what to expect.
 
 ## The problem
 
 Most massing tools, including my own earlier one, stop at flat setbacks and a height limit. Vancouver's protected view corridors are a genuinely different, harder constraint: a view cone doesn't limit a building to a storey count, it limits it to a maximum **geodetic elevation** (height above sea level) that is low near the viewpoint and rises with distance from it, following the geometry of a sightline. A site can be well within its zoning envelope and still have a tall building sliced off diagonally by a corridor it happens to sit inside.
+
+## How to test it
+
+No Rhino installation is required to verify any of this, only Python.
+
+```
+git clone https://github.com/RomanJahandideh/vancouver-view-corridor-massing.git
+cd vancouver-view-corridor-massing
+pip install rhino3dm matplotlib
+```
+
+1. **Run the tests first.** `python test_geometry.py` should print a series of checks ending in `PASS` for the apex/axis derivation, the half-plane clip against a hand-computed rectangle, and the floor-by-floor trimming behavior. This is the geometry being verified before anything else depends on it.
+2. **Generate the real massing.** `python view_corridor_massing.py` should fetch the real Creekside Park view corridor (or fall back to a verified offline copy if the network call fails), print a floor-by-floor table, and finish with `Wrote vancouver_viewcone_massing.3dm with 18 buildable floors under the view corridor`. Open that `.3dm` file directly in Rhino to inspect the real geometry, corridor polygon, site outline, and one solid per floor.
+3. **See it without Rhino.** `python preview_render.py` writes `preview.png`, a rendered image of the exact same geometry in the `.3dm` file, so you can see the result even without Rhino installed.
+4. **Run the research questions.** `python design_space_study.py` should print RQ1 (a 39.5% GFA-recovery figure) and RQ2 (a rotation sweep showing under 0.1% GFA variance, with the theoretical-versus-discrete-volume check confirming it's a real property, not a fluke).
+5. **Try the AI-directed layer.** `ANTHROPIC_API_KEY=sk-ant-... python ai_directed_recommendation.py "your design brief"` runs the study above, then asks Claude to recommend an orientation for your stated goal, citing the actual computed numbers rather than inventing new ones.
+6. **In Grasshopper**, paste `grasshopper_component.py` into a GhPython "Script" component (Rhino 8, Python 3 mode) and wire up the inputs documented in its own docstring, it shares the exact same tested core functions as step 1-2 above, copied over rather than reimplemented.
 
 ## Research questions
 
@@ -25,14 +42,14 @@ This isn't just "can the geometry be generated correctly", that part is table st
 - **Architext** (arXiv 2303.07519, *Language-Driven Generative Architecture Design*), for the broader context of language-conditioned generative design.
 - Evolutionary/optimization-based massing exploration in Rhino-Grasshopper (e.g. *Enabling Optimisation-based Exploration for Building Massing Design*) is the closest published methodology to the RQ2 sweep here, a systematic design-space exploration rather than one deterministic pass, though this study substitutes a closed-form proof for a population-based search, since the relationship here turned out to be provable rather than merely searchable.
 
-## Real data used
+## Real data used, with citations
 
-- **City of Vancouver Open Data Portal, "view-cones" dataset**: 24 officially protected view corridors, fetched live via the public API (`https://opendata.vancouver.ca/api/records/1.0/search/?dataset=view-cones`). This study uses **Creekside Park (view number J1)**, "View of Lions from Creekside Park." The polygon vertices, corridor name, and description are the real published geometry, not approximated.
-- The **geodetic-elevation mechanism itself is real and documented**: view cones limit an absolute elevation above sea level, low near the apex and rising with distance, applied through the rezoning and development permit process, not the zoning schedule directly.
+- **City of Vancouver Open Data Portal, "view-cones" dataset**: 24 officially protected view corridors, fetched live via the public API (`https://opendata.vancouver.ca/api/records/1.0/search/?dataset=view-cones`). This study uses **Creekside Park (view number J1)**, "View of Lions from Creekside Park." The polygon vertices, corridor name, and description are the real published geometry, not approximated, and the source URL is embedded in the code, not just this README.
+- The **geodetic-elevation mechanism itself is real and documented**: view cones limit an absolute elevation above sea level, low near the apex and rising with distance, applied through the rezoning and development permit process, not the zoning schedule directly. This is the same kind of **conditional, discretionary rule** that makes regulatory literacy hard in the first place, a limit that depends on where you are, not a single published number.
 
-## What's a placeholder, and why
+## What's a placeholder, and why, keeping uncertainty visible
 
-The open dataset publishes corridor **geometry** (the polygon), not per-site **elevation limits**. The City's own guidance for a real site is to confirm view-cone implications directly (`views@vancouver.ca`), since the applicable limit also depends on the site's own ground elevation and which of several bylaw provisions binds first. So `BASE_ELEV_M` and `SLOPE` are explicitly labeled placeholders, chosen to produce a legible, correctly-behaved worked example, not to claim a specific site's real legal limit. The RQ1 and RQ2 findings above (the 39.5% recovery figure and the rotation-invariance proof) don't depend on the exact placeholder values, they're structural properties of a linear sloped-ceiling constraint, and would hold with the real numbers substituted in.
+The open dataset publishes corridor **geometry** (the polygon), not per-site **elevation limits**. The City's own guidance for a real site is to confirm view-cone implications directly (`views@vancouver.ca`), since the applicable limit also depends on the site's own ground elevation and which of several bylaw provisions binds first. So `BASE_ELEV_M` and `SLOPE` are explicitly labeled placeholders, chosen to produce a legible, correctly-behaved worked example, not to claim a specific site's real legal limit. The RQ1 and RQ2 findings above (the 39.5% recovery figure and the rotation-invariance proof) don't depend on the exact placeholder values, they're structural properties of a linear sloped-ceiling constraint, and would hold with the real numbers substituted in. Marking that distinction, confirmed geometry versus a placeholder pending site-specific confirmation, rather than blurring the two, is the same discipline the [Zoning Literacy Assistant](https://github.com/RomanJahandideh/zoning-literacy-assistant) applies to every answer it gives.
 
 ## How it works
 
@@ -52,17 +69,4 @@ The open dataset publishes corridor **geometry** (the polygon), not per-site **e
 
 `ai_directed_recommendation.py` requires an `ANTHROPIC_API_KEY` and was not executed in the environment this repository was authored in (no key was available there); written against the documented Messages API and manually checked, but flagged as unexecuted rather than verified, the same honesty standard applied to the Grasshopper component above. The deterministic study it wraps stands on its own either way.
 
-## Run it
-
-**Standalone (no Rhino needed):**
-```
-pip install rhino3dm matplotlib
-python test_geometry.py                 # verification, run first
-python view_corridor_massing.py         # writes vancouver_viewcone_massing.3dm
-python preview_render.py                # writes preview.png
-python design_space_study.py            # RQ1 and RQ2, printed with the numbers above
-ANTHROPIC_API_KEY=sk-ant-... python ai_directed_recommendation.py "your design brief"
-```
-Open `vancouver_viewcone_massing.3dm` directly in Rhino to inspect the real geometry.
-
-**In Grasshopper:** paste `grasshopper_component.py` into a GhPython "Script" component (Rhino 8, Python 3 mode), wire up the inputs described in its docstring (`corridor_poly`, `site_poly`, `setback`, `base_elev`, `slope`, `floor_height`, `max_floors`), matching the same parameters used in the standalone script.
+See "How to test it" near the top of this README for the exact commands and what each one should print or produce.
